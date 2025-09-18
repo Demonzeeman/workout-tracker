@@ -13,7 +13,7 @@
 </head>
 <body>
 <div class="container">
-  <h2 class="text-center mb-3">🏋 Darling Workouts</h2>
+  <h2 class="text-center mb-3">🏋‍♀️ Darling Workouts</h2>
 
   <!-- Controls -->
   <div class="d-flex justify-content-between mb-2">
@@ -93,17 +93,6 @@ function populateExerciseDropdown() {
   });
 }
 
-// Quick Add
-function quickAdd(type, exercise) {
-  const date = dateInput.value;
-  const allData = JSON.parse(localStorage.getItem("workouts") || "{}");
-  if (!allData[type]) allData[type] = {};
-  if (!allData[type][exercise]) allData[type][exercise] = [];
-  allData[type][exercise].push({ date, data: "Quick Add" });
-  localStorage.setItem("workouts", JSON.stringify(allData));
-  loadExercises();
-}
-
 // Add button
 function addExercise() {
   editingIndex = null;
@@ -162,49 +151,45 @@ function deleteExercise(type, exercise, index) {
 function loadExercises() {
   exerciseList.innerHTML = "";
   const allData = JSON.parse(localStorage.getItem("workouts") || "{}");
-  let first = true;
+  let firstType = true;
 
   for (const type in exercisesByType) {
     const typeDiv = document.createElement("div");
     typeDiv.className = "mb-3";
 
-    // Type header
+    // Type collapsible
     const typeId = `collapse-${type}`;
-    const header = document.createElement("button");
-    header.className = "btn btn-secondary w-100 text-start mb-2";
-    header.setAttribute("data-bs-toggle","collapse");
-    header.setAttribute("data-bs-target",`#${typeId}`);
-    header.setAttribute("aria-expanded", first ? "true" : "false");
-    header.textContent = type;
-    typeDiv.appendChild(header);
+    const typeBtn = document.createElement("button");
+    typeBtn.className = "btn btn-secondary w-100 text-start mb-2";
+    typeBtn.setAttribute("data-bs-toggle","collapse");
+    typeBtn.setAttribute("data-bs-target",`#${typeId}`);
+    typeBtn.setAttribute("aria-expanded", firstType ? "true" : "false");
+    typeBtn.textContent = type;
+    typeDiv.appendChild(typeBtn);
 
-    const collapseDiv = document.createElement("div");
-    collapseDiv.className = "collapse" + (first ? " show" : "");
-    collapseDiv.id = typeId;
+    const typeCollapse = document.createElement("div");
+    typeCollapse.className = "collapse" + (firstType ? " show" : "");
+    typeCollapse.id = typeId;
 
+    // Exercises
     const exercises = new Set([...Object.keys(allData[type] || {}), ...exercisesByType[type]]);
-
     exercises.forEach(exercise => {
       const exDiv = document.createElement("div");
       exDiv.className = "mb-2";
 
-      const exTitle = document.createElement("h5");
-      exTitle.textContent = exercise;
-      exDiv.appendChild(exTitle);
+      // Exercise collapsible
+      const exId = `${type}-${exercise}`.replace(/\s+/g,'').replace(/\W/g,'');
+      const exBtn = document.createElement("button");
+      exBtn.className = "btn btn-outline-dark w-100 text-start mb-1";
+      exBtn.setAttribute("data-bs-toggle","collapse");
+      exBtn.setAttribute("data-bs-target",`#${exId}`);
+      exBtn.textContent = exercise;
+
+      const exCollapse = document.createElement("div");
+      exCollapse.className = "collapse";
+      exCollapse.id = exId;
 
       const entries = (allData[type] && allData[type][exercise]) || [];
-
-      // Quick Add
-      const quickDiv = document.createElement("div");
-      quickDiv.className = "exercise-entry d-flex align-items-center border p-2 rounded bg-white mb-1";
-      const quickBtn = document.createElement("button");
-      quickBtn.className = "btn btn-sm btn-info me-1";
-      quickBtn.textContent = "Quick Add";
-      quickBtn.addEventListener("click", () => quickAdd(type, exercise));
-      quickDiv.appendChild(quickBtn);
-      exDiv.appendChild(quickDiv);
-
-      // Entries by date
       if (entries.length > 0) {
         const entriesByDate = {};
         entries.forEach(e => {
@@ -213,22 +198,20 @@ function loadExercises() {
         });
 
         const sortedDates = Object.keys(entriesByDate).sort((a,b)=>new Date(b)-new Date(a));
-
         sortedDates.forEach(date => {
           const dateId = `${type}-${exercise}-${date}`.replace(/\s+/g,'').replace(/\W/g,'');
           const dateDiv = document.createElement("div");
 
-          const dateHeader = document.createElement("button");
-          dateHeader.className = "btn btn-link text-start w-100";
-          dateHeader.setAttribute("data-bs-toggle","collapse");
-          dateHeader.setAttribute("data-bs-target", `#${dateId}`);
-          dateHeader.setAttribute("aria-expanded","false");
-          dateHeader.textContent = formatDate(date);
-          dateDiv.appendChild(dateHeader);
+          // Date collapsible
+          const dateBtn = document.createElement("button");
+          dateBtn.className = "btn btn-link text-start w-100";
+          dateBtn.setAttribute("data-bs-toggle","collapse");
+          dateBtn.setAttribute("data-bs-target", `#${dateId}`);
+          dateBtn.textContent = formatDate(date);
 
-          const content = document.createElement("div");
-          content.className = "collapse ps-3 mt-2";
-          content.id = dateId;
+          const dateCollapse = document.createElement("div");
+          dateCollapse.className = "collapse ps-3 mt-2";
+          dateCollapse.id = dateId;
 
           entriesByDate[date].forEach((entry,index)=>{
             const entryDiv = document.createElement("div");
@@ -253,20 +236,23 @@ function loadExercises() {
 
             entryDiv.appendChild(span);
             entryDiv.appendChild(btnGroup);
-            content.appendChild(entryDiv);
+            dateCollapse.appendChild(entryDiv);
           });
 
-          dateDiv.appendChild(content);
-          exDiv.appendChild(dateDiv);
+          dateDiv.appendChild(dateBtn);
+          dateDiv.appendChild(dateCollapse);
+          exCollapse.appendChild(dateDiv);
         });
       }
 
-      collapseDiv.appendChild(exDiv);
+      exDiv.appendChild(exBtn);
+      exDiv.appendChild(exCollapse);
+      typeCollapse.appendChild(exDiv);
     });
 
-    typeDiv.appendChild(collapseDiv);
+    typeDiv.appendChild(typeCollapse);
     exerciseList.appendChild(typeDiv);
-    first = false;
+    firstType = false;
   }
 }
 
