@@ -17,7 +17,7 @@
 
   <!-- Controls -->
   <div class="d-flex justify-content-between mb-2">
-    <select id="workoutType" class="form-select w-50" onchange="loadExercises()">
+    <select id="workoutType" class="form-select w-50" onchange="populateExerciseDropdown(); loadExercises();">
       <option value="Push">Push</option>
       <option value="Pull">Pull</option>
       <option value="Legs">Legs</option>
@@ -26,7 +26,6 @@
     </select>
     <input type="date" id="dateInput" class="form-control w-25 ms-2" />
     <button class="btn btn-primary ms-2" onclick="addExercise()">Add</button>
-    <!-- button class="btn btn-secondary ms-2" onclick="exportData()">Export</button -->
   </div>
 
   <!-- Exercise list -->
@@ -69,66 +68,21 @@ dateInput.value = new Date().toISOString().split("T")[0];
 
 // Exercises by type
 const exercisesByType = {
-  Pull: [
-    "Deadlifts",
-    "Lateral Pulldowns",
-    "Cable Rows",
-    "Bicep Curls (EZ Bar)",
-    "Bent Over Row",
-    "Face Pull",
-    "Bicep Curl DB",
-    "DB Shrugs",
-    "Chin Ups",
-    "DB Reverse Fly",
-    "Dead Hang",
-    "Pull Ups"
-  ],
-  Push: [
-    "Chest Press",
-    "DB Chest Press",
-    "Incline DB Press",
-    "Close Grip DB Press",
-    "Push Up",
-    "Cable Tricep Extension",
-    "Shoulder Press DB",
-    "Skull Crushers",
-    "Lateral Raises",
-    "Chest Flys DB",
-    "Hammer Curls",
-    "Tricep Dips"
-  ],
-  Legs: [
-    "Squat - Standing",
-    "Goblet Squat",
-    "Belgian Squat",
-    "Romanian Deadlift",
-    "Hip Thrust",
-    "Calf Raises",
-    "Hamstring Curl",
-    "Abductor",
-    "Adductor",
-    "Leg Press"
-  ],
-  Core: [
-    "Ab Roller",
-    "Hanging Leg Raises",
-    "Plank",
-    "Russian Twists",
-    "Leg Raises",
-    "Mountain Climbers",
-    "Sit Ups"
-  ],
-  Cardio: [
-    "Treadmill",
-    "Elliptical Machine",
-    "Stationary Bike",
-    "Rowing Machine",
-    "Jump Rope",
-    "Stair Climber",
-  ]
+  Pull: ["Deadlifts","Lateral Pulldowns","Cable Rows","Bicep Curls (EZ Bar)","Bent Over Row","Face Pull","Bicep Curl DB","DB Shrugs","Chin Ups","DB Reverse Fly","Dead Hang","Pull Ups"],
+  Push: ["Chest Press","DB Chest Press","Incline DB Press","Close Grip DB Press","Push Up","Cable Tricep Extension","Shoulder Press DB","Skull Crushers","Lateral Raises","Chest Flys DB","Hammer Curls","Tricep Dips"],
+  Legs: ["Squat - Standing","Goblet Squat","Belgian Squat","Romanian Deadlift","Hip Thrust","Calf Raises","Hamstring Curl","Abductor","Adductor","Leg Press"],
+  Core: ["Ab Roller","Hanging Leg Raises","Plank","Russian Twists","Leg Raises","Mountain Climbers","Sit Ups"],
+  Cardio: ["Treadmill","Elliptical Machine","Stationary Bike","Rowing Machine","Jump Rope","Stair Climber"]
 };
 
-// Populate dropdown
+// Format date for display
+function formatDate(dateStr) {
+  const date = new Date(dateStr);
+  const options = { day: '2-digit', month: 'short', year: 'numeric' };
+  return date.toLocaleDateString('en-GB', options);
+}
+
+// Populate exercise dropdown in modal
 function populateExerciseDropdown() {
   exerciseName.innerHTML = "";
   exercisesByType[workoutType.value].forEach(ex => {
@@ -139,35 +93,95 @@ function populateExerciseDropdown() {
   });
 }
 
-// Load exercises
+// Quick Add
+function quickAdd(type, exercise) {
+  const date = dateInput.value;
+  const allData = JSON.parse(localStorage.getItem("workouts") || "{}");
+  if (!allData[type]) allData[type] = {};
+  if (!allData[type][exercise]) allData[type][exercise] = [];
+  allData[type][exercise].push({ date, data: "Quick Add" });
+  localStorage.setItem("workouts", JSON.stringify(allData));
+  loadExercises();
+}
+
+// Add button
+function addExercise() {
+  editingIndex = null;
+  editingExercise = null;
+  exerciseData.value = "";
+  populateExerciseDropdown();
+  exerciseModal.show();
+}
+
+// Save button in modal
+function saveExercise() {
+  const type = workoutType.value;
+  const name = exerciseName.value;
+  const date = dateInput.value;
+  const entry = { date, data: exerciseData.value || "No details" };
+  const allData = JSON.parse(localStorage.getItem("workouts") || "{}");
+  if (!allData[type]) allData[type] = {};
+  if (!allData[type][name]) allData[type][name] = [];
+  if (editingIndex !== null && editingExercise) {
+    allData[type][name][editingIndex] = entry;
+  } else {
+    allData[type][name].push(entry);
+  }
+  localStorage.setItem("workouts", JSON.stringify(allData));
+  editingIndex = null;
+  editingExercise = null;
+  exerciseModal.hide();
+  loadExercises();
+}
+
+// Edit exercise
+function editExercise(type, exercise, index) {
+  const allData = JSON.parse(localStorage.getItem("workouts") || "{}");
+  const entry = allData[type][exercise][index];
+  workoutType.value = type;
+  populateExerciseDropdown();
+  exerciseName.value = exercise;
+  exerciseData.value = entry.data;
+  dateInput.value = entry.date;
+  editingIndex = index;
+  editingExercise = exercise;
+  exerciseModal.show();
+}
+
+// Delete exercise
+function deleteExercise(type, exercise, index) {
+  if (!confirm("Are you sure you want to delete this exercise?")) return;
+  const allData = JSON.parse(localStorage.getItem("workouts") || "{}");
+  allData[type][exercise].splice(index,1);
+  if (allData[type][exercise].length===0) delete allData[type][exercise];
+  localStorage.setItem("workouts", JSON.stringify(allData));
+  loadExercises();
+}
+
+// Load exercises into the list
 function loadExercises() {
   exerciseList.innerHTML = "";
   const allData = JSON.parse(localStorage.getItem("workouts") || "{}");
-
-  let first = true; // optional: expand first section by default
+  let first = true;
 
   for (const type in exercisesByType) {
-    // Container for each type
     const typeDiv = document.createElement("div");
     typeDiv.className = "mb-3";
 
-    // Header button
+    // Type header
     const typeId = `collapse-${type}`;
     const header = document.createElement("button");
     header.className = "btn btn-secondary w-100 text-start mb-2";
-    header.setAttribute("data-bs-toggle", "collapse");
-    header.setAttribute("data-bs-target", `#${typeId}`);
+    header.setAttribute("data-bs-toggle","collapse");
+    header.setAttribute("data-bs-target",`#${typeId}`);
     header.setAttribute("aria-expanded", first ? "true" : "false");
     header.textContent = type;
-
     typeDiv.appendChild(header);
 
-    // Collapsible container
     const collapseDiv = document.createElement("div");
     collapseDiv.className = "collapse" + (first ? " show" : "");
     collapseDiv.id = typeId;
 
-    // Exercises within this type
     const exercises = new Set([...Object.keys(allData[type] || {}), ...exercisesByType[type]]);
 
     exercises.forEach(exercise => {
@@ -180,51 +194,70 @@ function loadExercises() {
 
       const entries = (allData[type] && allData[type][exercise]) || [];
 
-      // Quick Add button
+      // Quick Add
       const quickDiv = document.createElement("div");
       quickDiv.className = "exercise-entry d-flex align-items-center border p-2 rounded bg-white mb-1";
-      quickDiv.innerHTML = `<button class="btn btn-sm btn-info me-1" onclick="quickAdd('${type}','${exercise}')">Quick Add</button>`;
+      const quickBtn = document.createElement("button");
+      quickBtn.className = "btn btn-sm btn-info me-1";
+      quickBtn.textContent = "Quick Add";
+      quickBtn.addEventListener("click", () => quickAdd(type, exercise));
+      quickDiv.appendChild(quickBtn);
       exDiv.appendChild(quickDiv);
 
-      // Entries grouped by date
+      // Entries by date
       if (entries.length > 0) {
         const entriesByDate = {};
-        entries.forEach(entry => {
-          if (!entriesByDate[entry.date]) entriesByDate[entry.date] = [];
-          entriesByDate[entry.date].push(entry);
+        entries.forEach(e => {
+          if (!entriesByDate[e.date]) entriesByDate[e.date] = [];
+          entriesByDate[e.date].push(e);
         });
 
         const sortedDates = Object.keys(entriesByDate).sort((a,b)=>new Date(b)-new Date(a));
 
         sortedDates.forEach(date => {
-          const dateId = `${type}-${exercise}-${date}`.replace(/\s+/g,'');
-          const collapseEntryDiv = document.createElement("div");
+          const dateId = `${type}-${exercise}-${date}`.replace(/\s+/g,'').replace(/\W/g,'');
+          const dateDiv = document.createElement("div");
 
           const dateHeader = document.createElement("button");
           dateHeader.className = "btn btn-link text-start w-100";
           dateHeader.setAttribute("data-bs-toggle","collapse");
           dateHeader.setAttribute("data-bs-target", `#${dateId}`);
           dateHeader.setAttribute("aria-expanded","false");
-          dateHeader.textContent = date;
-          collapseEntryDiv.appendChild(dateHeader);
+          dateHeader.textContent = formatDate(date);
+          dateDiv.appendChild(dateHeader);
 
           const content = document.createElement("div");
           content.className = "collapse ps-3 mt-2";
           content.id = dateId;
 
-          entriesByDate[date].forEach((entry, index)=>{
-            const div = document.createElement("div");
-            div.className = "exercise-entry d-flex justify-content-between align-items-center border p-2 rounded bg-white mb-1";
-            div.innerHTML = `${entry.data}
-              <div>
-                <button class="btn btn-sm btn-warning me-1" onclick="editExercise('${type}','${exercise}',${index})">Edit</button>
-                <button class="btn btn-sm btn-danger" onclick="deleteExercise('${type}','${exercise}',${index})">Delete</button>
-              </div>`;
-            content.appendChild(div);
+          entriesByDate[date].forEach((entry,index)=>{
+            const entryDiv = document.createElement("div");
+            entryDiv.className = "exercise-entry d-flex justify-content-between align-items-center border p-2 rounded bg-white mb-1";
+
+            const span = document.createElement("span");
+            span.textContent = entry.data;
+
+            const btnGroup = document.createElement("div");
+            const editBtn = document.createElement("button");
+            editBtn.className = "btn btn-sm btn-warning me-1";
+            editBtn.textContent = "Edit";
+            editBtn.addEventListener("click", () => editExercise(type, exercise, index));
+
+            const deleteBtn = document.createElement("button");
+            deleteBtn.className = "btn btn-sm btn-danger";
+            deleteBtn.textContent = "Delete";
+            deleteBtn.addEventListener("click", () => deleteExercise(type, exercise, index));
+
+            btnGroup.appendChild(editBtn);
+            btnGroup.appendChild(deleteBtn);
+
+            entryDiv.appendChild(span);
+            entryDiv.appendChild(btnGroup);
+            content.appendChild(entryDiv);
           });
 
-          collapseEntryDiv.appendChild(content);
-          exDiv.appendChild(collapseEntryDiv);
+          dateDiv.appendChild(content);
+          exDiv.appendChild(dateDiv);
         });
       }
 
@@ -233,77 +266,8 @@ function loadExercises() {
 
     typeDiv.appendChild(collapseDiv);
     exerciseList.appendChild(typeDiv);
-
-    first = false; // only first section expanded initially
+    first = false;
   }
-}
-
-// Add
-function addExercise() {
-  editingIndex = null;
-  editingExercise = null;
-  exerciseData.value = "";
-  populateExerciseDropdown();
-  exerciseModal.show();
-}
-
-// Save
-function saveExercise() {
-  const type = workoutType.value;
-  const name = exerciseName.value;
-  const date = dateInput.value;
-  const entry = {date, data: exerciseData.value};
-
-  const allData = JSON.parse(localStorage.getItem("workouts") || "{}");
-  if (!allData[type]) allData[type] = {};
-  if (!allData[type][name]) allData[type][name] = [];
-
-  if (editingIndex !== null && editingExercise) {
-    allData[type][name][editingIndex] = entry;
-  } else {
-    allData[type][name].push(entry);
-  }
-
-  localStorage.setItem("workouts", JSON.stringify(allData));
-  editingIndex = null;
-  editingExercise = null;
-  exerciseModal.hide();
-  loadExercises();
-}
-
-// Edit
-function editExercise(type, exercise, index) {
-  const allData = JSON.parse(localStorage.getItem("workouts") || "{}");
-  const entry = allData[type][exercise][index];
-  workoutType.value = type;
-  exerciseName.value = exercise;
-  exerciseData.value = entry.data;
-  dateInput.value = entry.date;
-  editingIndex = index;
-  editingExercise = exercise;
-  exerciseModal.show();
-}
-
-// Delete
-function deleteExercise(type, exercise, index) {
-  if (!confirm("Are you sure you want to delete this exercise?")) return;
-  const allData = JSON.parse(localStorage.getItem("workouts") || "{}");
-  allData[type][exercise].splice(index,1);
-  if (allData[type][exercise].length===0) delete allData[type][exercise];
-  localStorage.setItem("workouts", JSON.stringify(allData));
-  loadExercises();
-}
-
-// Export
-function exportData() {
-  const allData = JSON.parse(localStorage.getItem("workouts") || "{}");
-  const blob = new Blob([JSON.stringify(allData,null,2)], {type:"application/json"});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "workouts.json";
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 // Init
